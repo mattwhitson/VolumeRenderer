@@ -38,5 +38,4 @@ void Queue::Submit(ID3D12CommandList* commandList)
 {
 	static_cast<ID3D12GraphicsCommandList*>(commandList)->Close();
 	mCommandQueue->ExecuteCommandLists(1, &commandList);
-
 }

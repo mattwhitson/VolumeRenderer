@@ -20,6 +20,8 @@ public:
 	Device();
 	~Device();
 
+	// TEMP
+	void Render();
 private:
 	void InitializeDevice();
 	void InitializeDeviceResources();
@@ -35,6 +37,7 @@ private:
 
 	std::unique_ptr<DescriptorHeap> mSRVDescriptorHeap = nullptr;
 	std::unique_ptr<DescriptorHeap> mRTVDescriptorHeap = nullptr;
+	std::unique_ptr<DescriptorHeap> mDSVDescriptorHeap = nullptr;
 	std::unique_ptr<Queue> mGraphicsQueue = nullptr;
 
 	std::array<uint64_t, FRAMES_IN_FLIGHT> mFenceValues;
@@ -42,4 +45,12 @@ private:
 
 	std::array<ComPtr<ID3D12CommandAllocator>, FRAMES_IN_FLIGHT> mCommandAllocators;
 	ComPtr<ID3D12GraphicsCommandList5> mCommandList = nullptr;
+
+	ComPtr<ID3D12PipelineState> mGraphicsPipeline = nullptr;
+	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
+
+	std::unique_ptr<TextureResource> mDepthBuffer = nullptr;
+	std::unique_ptr<BufferResource> mTriangle = nullptr;
+	std::unique_ptr<BufferResource> mConstantBuffer = nullptr;
+	uint64_t mFrameIndex = 0;
 };

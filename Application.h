@@ -11,6 +11,8 @@ public:
 
 	void Initialize();
 
+	void Render();
+
 private:
 	std::unique_ptr<Device> mDevice = nullptr;
 };
