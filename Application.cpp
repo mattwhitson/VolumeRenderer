@@ -14,3 +14,8 @@ void Application::Initialize()
 {
 	mDevice = std::make_unique<Device>();
 }
+
+void Application::Render()
+{
+	mDevice->Render();
+}

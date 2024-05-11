@@ -25,6 +25,6 @@ int main()
             shouldExit = true;
         }
 
-        // Render
+        app.Render();
     }
 }
