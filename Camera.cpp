@@ -3,7 +3,7 @@
 #include "Device.h"
 #include "Window.h"
 
-#include "D3D12MemAlloc.h"
+#include <iostream>
  
 Camera::Camera(Device& device, Input& input, uint32_t descriptorIndex)
 	: mInput(input)
@@ -37,6 +37,45 @@ Camera::Camera(Device& device, Input& input, uint32_t descriptorIndex)
 	mConstantBufferData.mCubeDescriptorIndex = descriptorIndex;
 
 	memcpy(data, &mConstantBufferData, sizeof(PerFrameConstantBuffer));
+
+	mViewMatrix = mConstantBufferData.cameraMatrix;
+}
+
+void Camera::Update(Input& input, float deltaTime)
+{
+	if (mRmbIsPressed)
+		UpdateViewMatrix(deltaTime);
+}
+
+void Camera::UpdateViewMatrix(float deltaTime)
+{
+	POINT cursorPos;
+	GetCursorPos(&cursorPos);
+	
+	if (!mPrevDragState.inProgress)
+	{
+		mPrevDragState.x = cursorPos.x;
+		mPrevDragState.y = cursorPos.y;
+		mPrevDragState.inProgress = true;
+		return;
+	}
+
+	float deltaX = (cursorPos.x - mPrevDragState.x) * deltaTime;
+	float deltaY = (mPrevDragState.y - cursorPos.y) * deltaTime;
+
+	DirectX::XMVECTOR qPitch = DirectX::XMQuaternionRotationAxis(
+		DirectX::XMLoadFloat3(&mRight), DirectX::XMConvertToRadians(deltaY));
+	DirectX::XMVECTOR qYaw = DirectX::XMQuaternionRotationAxis(
+		DirectX::XMLoadFloat3(&mUp), DirectX::XMConvertToRadians(deltaX));
+
+	DirectX::XMVECTOR orientation = DirectX::XMQuaternionMultiply(qPitch, qYaw);
+	orientation = DirectX::XMQuaternionNormalize(orientation);
+
+	DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationQuaternion(orientation);
+
+	DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(mPosition.x, mPosition.y, mPosition.z);
+
+	DirectX::XMStoreFloat4x4(&mViewMatrix, rotation * translation);
 }
 
 Camera::~Camera()
