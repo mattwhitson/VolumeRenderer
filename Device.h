@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Types.h"
+#include "Application.h"/*temp*/
 
 #include <memory>
 #include <array>
@@ -11,15 +12,19 @@ namespace D3D12MA {
 
 class DescriptorHeap;
 class Queue;
+class Camera;/*TEMP*/
+struct Input;
 
 constexpr uint32_t FRAMES_IN_FLIGHT = 2;
 constexpr uint32_t NUM_BACK_BUFFERS = 3;
 
 class Device {
 public:
-	Device();
+	Device(Input& input);
 	~Device();
 
+	std::unique_ptr<BufferResource> CreateBuffer(BufferDescription& desc, void* data = nullptr);
+	std::unique_ptr<TextureResource> CreateTexture(TextureDescription& desc);
 	// TEMP
 	void Render();
 private:
@@ -30,6 +35,7 @@ private:
 	void InitializePipeline();
 
 private:
+	uint32_t mFrameIndex = 0;
 	ComPtr<IDXGIFactory2> mFactory = nullptr;
 	ComPtr<ID3D12Device5> mDevice = nullptr;
 	ComPtr<IDXGISwapChain3> mSwapChain = nullptr;
@@ -50,7 +56,12 @@ private:
 	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
 
 	std::unique_ptr<TextureResource> mDepthBuffer = nullptr;
-	std::unique_ptr<BufferResource> mTriangle = nullptr;
-	std::unique_ptr<BufferResource> mConstantBuffer = nullptr;
-	uint64_t mFrameIndex = 0;
+	std::unique_ptr<BufferResource> mCube = nullptr;
+
+	std::unique_ptr<TextureResource> mCubeFront = nullptr;
+	std::unique_ptr<TextureResource> mCubeBack = nullptr;
+
+	ComPtr<ID3D12PipelineState> mCullFrontFacePipeline = nullptr;
+	std::unique_ptr<Camera> mCamera = nullptr;
+	Input& mInput;
 };
