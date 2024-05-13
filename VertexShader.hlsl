@@ -25,7 +25,8 @@ VertexOutput VSMain(uint vertexId : SV_VERTEXID)
 	);
 
 	VertexOutput output;
-	output.position = mul(float4(pos, 1.0f), ObjectConstantBuffer.cameraMatrix);
+	output.position = mul(float4(pos, 1.0f), ObjectConstantBuffer.modelMatrix);
+	output.position = mul(output.position, ObjectConstantBuffer.cameraMatrix);
 	output.position = mul(output.position, ObjectConstantBuffer.projMatrix);
 	output.vertPos = pos;
 	return output;

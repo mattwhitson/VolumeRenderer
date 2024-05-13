@@ -10,8 +10,10 @@ struct Input;
 class Camera {
 
 	struct PrevDragState {
-		float x = -1;
-		float y = -1;
+		float x = 0.0f;
+		float y = 0.0f;
+		float deltaX = 0.0f;
+		float deltaY = 0.0f;
 		bool inProgress = false;
 	};
 public: 
@@ -21,7 +23,9 @@ public:
 	void Update(Input& input, float deltaTime);
 
 private:
-	void UpdateViewMatrix(float deltaTime);
+	void UpdateViewMatrix();
+	void UpdatePosition(Input& input, float deltaTime);
+	void CalculateMouseDelta(float deltaTime);
 
 public:
 	std::unique_ptr<BufferResource> mConstantBuffer;
@@ -34,9 +38,11 @@ private:
 	PerFrameConstantBuffer mConstantBufferData;
 
 	DirectX::XMFLOAT4X4 mViewMatrix{};
-	DirectX::XMFLOAT3 mPosition;
-	DirectX::XMFLOAT3 mFront;
-	DirectX::XMFLOAT3 mRight;
-	DirectX::XMFLOAT3 mUp;
+	DirectX::XMFLOAT3 mPosition{};
+	DirectX::XMFLOAT3 mRight{};
+	DirectX::XMFLOAT3 mUp{};
+	DirectX::XMFLOAT3 mForward{};
 
+	float mPitch;
+	float mYaw;
 };
