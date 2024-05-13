@@ -7,12 +7,40 @@ LRESULT WINAPI Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam
 
     switch (msg)
     {
+    case WM_CREATE:
+    {
+        LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lparam);
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+    }
+    break;
+    case WM_KEYDOWN:
+        if (app->mIsInitialized)
+        {
+            if (0x41 <= wparam && wparam <= 0x5A)
+            {
+                int x = wparam - 0x41;
+                app->mInput.keys[wparam - 0x41] = true;
+            }
+        }
+        break;
+    case WM_KEYUP:
+        if (app->mIsInitialized)
+        {
+            if (0x41 <= wparam && wparam <= 0x5A)
+            {
+                app->mInput.keys[wparam - 0x41] = false;
+            }
+        }
+        break;
     case WM_CLOSE:
     case WM_DESTROY: PostQuitMessage(0); [[fallthrough]];
     case WM_SIZING: [[fallthrough]];
     case WM_SIZE: [[fallthrough]];
-    default: return DefWindowProcW(hwnd, msg, wparam, lparam);
+    default:
+        break;
     }
+
+    return DefWindowProcW(hwnd, msg, wparam, lparam);
 }
 
 HWND Window::mHwnd = NULL;
@@ -41,7 +69,7 @@ Window::Window(uint32_t width, uint32_t height, Application* app)
     mHwnd = CreateWindowExW(
         0, 
         mAppName.c_str(), 
-        L"Volume Rendering",
+        L"Volume Rendererer",
         WS_VISIBLE | WS_OVERLAPPEDWINDOW, 
         CW_USEDEFAULT,
         CW_USEDEFAULT, 

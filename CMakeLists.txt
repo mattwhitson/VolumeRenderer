@@ -6,6 +6,7 @@ add_executable(VolumeRenderer
 	VertexShader.hlsl
 	PixelShader.hlsl
 
+	Camera.h 
 	Types.h 
 	DescriptorHeap.h 
 	Queue.h
@@ -13,6 +14,7 @@ add_executable(VolumeRenderer
 	Device.h 
 	Application.h 
 	
+	Camera.cpp 
 	DescriptorHeap.cpp 
 	Queue.cpp 
 	Window.cpp 
