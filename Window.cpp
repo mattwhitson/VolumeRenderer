@@ -1,5 +1,6 @@
 #include "Window.h"
 #include "Application.h"
+#include "Camera.h"
 
 LRESULT WINAPI Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -21,6 +22,19 @@ LRESULT WINAPI Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam
                 int x = wparam - 0x41;
                 app->mInput.keys[wparam - 0x41] = true;
             }
+        }
+        break;
+    case WM_RBUTTONDOWN:
+        if (app->mIsInitialized)
+        {
+            app->GetCamera().mRmbIsPressed = true;
+        }
+        break;
+    case WM_RBUTTONUP:
+        if (app->mIsInitialized)
+        {
+            app->GetCamera().mRmbIsPressed = false;
+            app->GetCamera().mPrevDragState.inProgress = false;
         }
         break;
     case WM_KEYUP:

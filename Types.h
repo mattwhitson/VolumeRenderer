@@ -1,8 +1,6 @@
 #pragma once
 
-namespace D3D12MA {
-	class Allocation;
-}
+#include "D3D12MemAlloc.h"
 
 struct Descriptor {
 	D3D12_CPU_DESCRIPTOR_HANDLE mCpuHandle;

@@ -25,6 +25,7 @@ int main()
             shouldExit = true;
         }
 
+        app.Update();
         app.Render();
     }
 }

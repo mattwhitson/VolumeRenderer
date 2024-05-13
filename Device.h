@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Types.h"
-#include "Application.h"/*temp*/
+#include "DescriptorHeap.h"
 
 #include <memory>
 #include <array>
@@ -10,7 +10,6 @@ namespace D3D12MA {
 	class Allocator;
 }
 
-class DescriptorHeap;
 class Queue;
 class Camera;/*TEMP*/
 struct Input;
@@ -20,19 +19,29 @@ constexpr uint32_t NUM_BACK_BUFFERS = 3;
 
 class Device {
 public:
-	Device(Input& input);
+	Device();
 	~Device();
+
+	ID3D12Device5* GetDevice() { return mDevice.Get(); }
+	TextureResource& GetBackbuffer(uint32_t index) { return mBackBuffers[index]; }
+	TextureResource& GetCurrentBackbuffer() { return mBackBuffers[mSwapChain->GetCurrentBackBufferIndex()]; }
+	ID3D12DescriptorHeap* GetSrvHeap() { return mSRVDescriptorHeap->GetHeap(); }
+	void WaitForIdle();
 
 	std::unique_ptr<BufferResource> CreateBuffer(BufferDescription& desc, void* data = nullptr);
 	std::unique_ptr<TextureResource> CreateTexture(TextureDescription& desc);
-	// TEMP
-	void Render();
+	
+	void BeginFrame();
+	void EndFrame();
+
 private:
 	void InitializeDevice();
 	void InitializeDeviceResources();
 
-	// TEMP
-	void InitializePipeline();
+
+public:
+	std::array<ComPtr<ID3D12CommandAllocator>, FRAMES_IN_FLIGHT> mCommandAllocators;
+	ComPtr<ID3D12GraphicsCommandList5> mCommandList = nullptr;
 
 private:
 	uint32_t mFrameIndex = 0;
@@ -49,19 +58,4 @@ private:
 	std::array<uint64_t, FRAMES_IN_FLIGHT> mFenceValues;
 	std::array<TextureResource, NUM_BACK_BUFFERS> mBackBuffers;
 
-	std::array<ComPtr<ID3D12CommandAllocator>, FRAMES_IN_FLIGHT> mCommandAllocators;
-	ComPtr<ID3D12GraphicsCommandList5> mCommandList = nullptr;
-
-	ComPtr<ID3D12PipelineState> mGraphicsPipeline = nullptr;
-	ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
-
-	std::unique_ptr<TextureResource> mDepthBuffer = nullptr;
-	std::unique_ptr<BufferResource> mCube = nullptr;
-
-	std::unique_ptr<TextureResource> mCubeFront = nullptr;
-	std::unique_ptr<TextureResource> mCubeBack = nullptr;
-
-	ComPtr<ID3D12PipelineState> mCullFrontFacePipeline = nullptr;
-	std::unique_ptr<Camera> mCamera = nullptr;
-	Input& mInput;
 };
