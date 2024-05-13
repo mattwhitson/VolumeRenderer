@@ -8,8 +8,10 @@
 Camera::Camera(Device& device, Input& input, uint32_t descriptorIndex)
 	: mInput(input)
 	, mDevice(device)
-	, mPosition(0, 0, -10)
-	, mFront(0, 0, 1)
+	, mPosition(0, 0, -5)
+	, mPitch(0)
+	, mYaw(0)
+	, mForward(0, 0, 1)
 	, mRight(1, 0, 0)
 	, mUp(0, 1, 0)
 {
@@ -21,37 +23,57 @@ Camera::Camera(Device& device, Input& input, uint32_t descriptorIndex)
 
 	mConstantBuffer = device.CreateBuffer(desc);
 
-	void* data;
-	mConstantBuffer->mResource->Map(0, nullptr, &data);
+	mConstantBuffer->mResource->Map(0, nullptr, &mConstantBuffer->mMapped);
 
 	float aspectRatio = static_cast<float>(Window::GetWidth()) / Window::GetHeight();
 
 	DirectX::XMStoreFloat4x4(&mConstantBufferData.projectionMatrix,
 		DirectX::XMMatrixTranspose(
 			DirectX::XMMatrixPerspectiveFovLH(3.14159f / 4.0f, aspectRatio, 0.01f, 100.f)));
-	DirectX::XMStoreFloat4x4(&mConstantBufferData.cameraMatrix,	
-		DirectX::XMMatrixTranspose(
-			DirectX::XMMatrixLookAtLH(DirectX::XMLoadFloat3(&mPosition), { 0, 0, 0 }, DirectX::XMLoadFloat3(&mUp))));
+
 	DirectX::XMStoreFloat4x4(&mConstantBufferData.worldMatrix, 
-		DirectX::XMMatrixTranspose(DirectX::XMMatrixIdentity()));
+		DirectX::XMMatrixIdentity());
+
 	mConstantBufferData.mCubeDescriptorIndex = descriptorIndex;
 
-	memcpy(data, &mConstantBufferData, sizeof(PerFrameConstantBuffer));
-
-	mViewMatrix = mConstantBufferData.cameraMatrix;
+	memcpy(mConstantBuffer->mMapped, &mConstantBufferData, sizeof(PerFrameConstantBuffer));
+	UpdateViewMatrix();
 }
 
 void Camera::Update(Input& input, float deltaTime)
 {
+	UpdatePosition(input, deltaTime);
 	if (mRmbIsPressed)
-		UpdateViewMatrix(deltaTime);
+		CalculateMouseDelta(deltaTime);
+	UpdateViewMatrix();
 }
 
-void Camera::UpdateViewMatrix(float deltaTime)
+void Camera::UpdatePosition(Input& input, float deltaTime)
+{
+	using namespace DirectX;
+	if (input.keys['w' - 'a'])
+	{
+		XMStoreFloat3(&mPosition, XMLoadFloat3(&mPosition) + (XMLoadFloat3(&mForward) * deltaTime * 10.0f));
+	}
+	if (input.keys['s' - 'a'])
+	{
+		XMStoreFloat3(&mPosition, XMLoadFloat3(&mPosition) - (XMLoadFloat3(&mForward) * deltaTime * 10.0f));
+	}
+	if (input.keys['d' - 'a'])
+	{
+		XMStoreFloat3(&mPosition, XMLoadFloat3(&mPosition) + (XMLoadFloat3(&mRight) * deltaTime * 10.0f));
+	}
+	if (input.keys['a' - 'a'])
+	{
+		XMStoreFloat3(&mPosition, XMLoadFloat3(&mPosition) - (XMLoadFloat3(&mRight) * deltaTime * 10.0f));
+	}
+}
+
+void Camera::CalculateMouseDelta(float deltaTime)
 {
 	POINT cursorPos;
 	GetCursorPos(&cursorPos);
-	
+
 	if (!mPrevDragState.inProgress)
 	{
 		mPrevDragState.x = cursorPos.x;
@@ -60,22 +82,43 @@ void Camera::UpdateViewMatrix(float deltaTime)
 		return;
 	}
 
-	float deltaX = (cursorPos.x - mPrevDragState.x) * deltaTime;
-	float deltaY = (mPrevDragState.y - cursorPos.y) * deltaTime;
+	float deltaX = (cursorPos.x - mPrevDragState.x) * deltaTime * 100.0f;
+	float deltaY = (mPrevDragState.y - cursorPos.y) * deltaTime * 100.0f;
 
-	DirectX::XMVECTOR qPitch = DirectX::XMQuaternionRotationAxis(
-		DirectX::XMLoadFloat3(&mRight), DirectX::XMConvertToRadians(deltaY));
-	DirectX::XMVECTOR qYaw = DirectX::XMQuaternionRotationAxis(
-		DirectX::XMLoadFloat3(&mUp), DirectX::XMConvertToRadians(deltaX));
+	mYaw += deltaX;
+	mPitch += deltaY;
 
-	DirectX::XMVECTOR orientation = DirectX::XMQuaternionMultiply(qPitch, qYaw);
-	orientation = DirectX::XMQuaternionNormalize(orientation);
+	mPitch = std::min(90.0f - 0.5f, std::max(mPitch, -90.0f + 0.5f));
 
+	mPrevDragState.x = cursorPos.x;
+	mPrevDragState.y = cursorPos.y;
+	mPrevDragState.deltaX = deltaX;
+	mPrevDragState.deltaY = deltaY;
+}
+
+void Camera::UpdateViewMatrix()
+{
+	DirectX::XMVECTOR qPitch = DirectX::XMQuaternionRotationAxis(DirectX::XMVECTOR{ 1, 0, 0 }, DirectX::XMConvertToRadians(mPitch));
+	DirectX::XMVECTOR qYaw = DirectX::XMQuaternionRotationAxis(DirectX::XMVECTOR{ 0, 1, 0 }, DirectX::XMConvertToRadians(-mYaw));
+
+	DirectX::XMVECTOR orientation = DirectX::XMQuaternionNormalize(DirectX::XMQuaternionMultiply(qYaw, qPitch));
 	DirectX::XMMATRIX rotation = DirectX::XMMatrixRotationQuaternion(orientation);
 
-	DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(mPosition.x, mPosition.y, mPosition.z);
+	DirectX::XMMATRIX translation = DirectX::XMMatrixTranslation(-mPosition.x, -mPosition.y, -mPosition.z);
 
-	DirectX::XMStoreFloat4x4(&mViewMatrix, rotation * translation);
+	// can easily be changed to an orbit camera with mPosition.xy being the focal point
+	// and mPosition.z being the distanceToFocalPoint by reversing translation * rotation
+	// A^T * B^T = (BA)^T
+	DirectX::XMStoreFloat4x4(&mViewMatrix, DirectX::XMMatrixTranspose(translation * rotation));
+	mConstantBufferData.cameraMatrix = mViewMatrix;
+	rotation = DirectX::XMMatrixTranspose(rotation);
+
+	DirectX::XMStoreFloat3(&mRight, rotation.r[0]);
+	DirectX::XMStoreFloat3(&mUp, rotation.r[1]);
+	DirectX::XMStoreFloat3(&mForward, rotation.r[2]);
+
+	memcpy(static_cast<char*>(mConstantBuffer->mMapped) + offsetof(PerFrameConstantBuffer, cameraMatrix), 
+		&mConstantBufferData.cameraMatrix, sizeof(DirectX::XMFLOAT4X4));
 }
 
 Camera::~Camera()

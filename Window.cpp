@@ -27,12 +27,14 @@ LRESULT WINAPI Window::WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam
     case WM_RBUTTONDOWN:
         if (app->mIsInitialized)
         {
+            SetCapture(hwnd);
             app->GetCamera().mRmbIsPressed = true;
         }
         break;
     case WM_RBUTTONUP:
         if (app->mIsInitialized)
         {
+            ReleaseCapture();
             app->GetCamera().mRmbIsPressed = false;
             app->GetCamera().mPrevDragState.inProgress = false;
         }
