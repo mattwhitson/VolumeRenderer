@@ -57,6 +57,10 @@ target_link_libraries(
 
 target_precompile_headers(VolumeRenderer PRIVATE stdafx.h)
 
+target_compile_definitions(VolumeRenderer PRIVATE
+    RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Resources"
+)
+
 # D3D12MA
 add_subdirectory(ThirdParty/D3D12MemoryAllocator EXCLUDE_FROM_ALL)
 target_link_libraries(VolumeRenderer PUBLIC D3D12MemoryAllocator)

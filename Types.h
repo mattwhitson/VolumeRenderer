@@ -2,6 +2,9 @@
 
 #include "D3D12MemAlloc.h"
 
+#include <filesystem>
+#include <fstream>
+
 struct Descriptor {
 	D3D12_CPU_DESCRIPTOR_HANDLE mCpuHandle;
 	D3D12_GPU_DESCRIPTOR_HANDLE mGpuHandle;
@@ -14,6 +17,7 @@ struct Resource {
 	D3D12_RESOURCE_STATES mCurrentState = D3D12_RESOURCE_STATE_COMMON;
 	D3D12_RESOURCE_DESC mDesc{};
 	uint32_t mDescriptorIndex = 0;
+	uint32_t mSize = 0;
 };
 
 struct BufferResource : public Resource {
@@ -71,17 +75,40 @@ struct TextureDescription {
 	uint16_t mipLevels = 1;
 };
 
+struct PerFrameConstantBuffer {
+	uint32_t frontDescriptorIndex = 0;
+	uint32_t backDescriptorIndex = 0;
+};
+
+struct CameraConstantBuffer {
+	DirectX::XMFLOAT4X4 projectionMatrix{};
+	DirectX::XMFLOAT4X4 cameraMatrix{};
+	DirectX::XMFLOAT4X4 worldMatrix{};
+	uint32_t mCubeDescriptorIndex = UINT_MAX;
+};
+
 namespace utils {
 	static uint32_t AlignU32(uint32_t valueToAlign, uint32_t alignment)
 	{
 		alignment -= 1;
 		return (uint32_t)((valueToAlign + alignment) & ~alignment);
 	}
-}
 
-struct PerFrameConstantBuffer {
-	DirectX::XMFLOAT4X4 projectionMatrix{};
-	DirectX::XMFLOAT4X4 cameraMatrix{};
-	DirectX::XMFLOAT4X4 worldMatrix{};
-	uint32_t mCubeDescriptorIndex = UINT_MAX;
-};
+	template<class T>
+	static std::vector<T> LoadFileIntoVector(const std::filesystem::path& filePath)
+	{
+		std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+
+		if (!file.is_open())
+			assert(false && "File couldn't be opened");
+
+		size_t fileSize = static_cast<size_t>(file.tellg());
+		std::vector<T> buffer(fileSize / sizeof(T));
+
+		file.seekg(0);
+		file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
+		file.close();
+
+		return buffer;
+	}
+}
