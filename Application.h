@@ -1,7 +1,10 @@
 #pragma once
 
+#include "Types.h"
+
 #include <array>
 #include <memory>
+#include <vector>
 
 class Device;
 class Camera;
@@ -30,6 +33,7 @@ public:
 	void Update();
 private:
 	void InitializePipelines();
+	void LoadVolumeData();
 
 public:
 	bool mIsInitialized = false;
@@ -48,6 +52,12 @@ private:
 	std::unique_ptr<TextureResource> mCubeBack = nullptr;
 
 	ComPtr<ID3D12PipelineState> mCullFrontFacePipeline = nullptr;
-	ComPtr< ID3D12PipelineState> mCullBackFacePipeline = nullptr;
+	ComPtr<ID3D12PipelineState> mCullBackFacePipeline = nullptr;
 	std::unique_ptr<Camera> mCamera = nullptr;
+
+	std::vector<float> mVolumeData;
+	std::unique_ptr<TextureResource> mVolumeTexture = nullptr;
+
+	PerFrameConstantBuffer mPerFrameConstantBufferData{};
+	std::unique_ptr<BufferResource> mPerFrameConstantBuffer = nullptr;
 };

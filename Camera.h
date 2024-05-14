@@ -35,7 +35,7 @@ public:
 private:
 	Device& mDevice;
 	Input& mInput;
-	PerFrameConstantBuffer mConstantBufferData;
+	CameraConstantBuffer mConstantBufferData;
 
 	DirectX::XMFLOAT4X4 mViewMatrix{};
 	DirectX::XMFLOAT3 mPosition{};

@@ -18,7 +18,7 @@ Camera::Camera(Device& device, Input& input, uint32_t descriptorIndex)
 	BufferDescription desc{
 			.bufferDescriptor = DescriptorType::Cbv,
 			.heapType = D3D12_HEAP_TYPE_UPLOAD,
-			.size = sizeof(PerFrameConstantBuffer),
+			.size = sizeof(CameraConstantBuffer),
 			.count = 1 };
 
 	mConstantBuffer = device.CreateBuffer(desc);
@@ -36,7 +36,7 @@ Camera::Camera(Device& device, Input& input, uint32_t descriptorIndex)
 
 	mConstantBufferData.mCubeDescriptorIndex = descriptorIndex;
 
-	memcpy(mConstantBuffer->mMapped, &mConstantBufferData, sizeof(PerFrameConstantBuffer));
+	memcpy(mConstantBuffer->mMapped, &mConstantBufferData, sizeof(CameraConstantBuffer));
 	UpdateViewMatrix();
 }
 
@@ -117,7 +117,7 @@ void Camera::UpdateViewMatrix()
 	DirectX::XMStoreFloat3(&mUp, rotation.r[1]);
 	DirectX::XMStoreFloat3(&mForward, rotation.r[2]);
 
-	memcpy(static_cast<char*>(mConstantBuffer->mMapped) + offsetof(PerFrameConstantBuffer, cameraMatrix), 
+	memcpy(static_cast<char*>(mConstantBuffer->mMapped) + offsetof(CameraConstantBuffer, cameraMatrix),
 		&mConstantBufferData.cameraMatrix, sizeof(DirectX::XMFLOAT4X4));
 }
 

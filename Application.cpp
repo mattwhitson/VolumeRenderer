@@ -7,6 +7,9 @@
 
 #include <vector>
 #include <chrono>
+#include <filesystem>
+#include <iostream>
+#include <array>
 
 #define DX_ASSERT(hr) { if FAILED(hr) assert(false);}
 
@@ -46,9 +49,49 @@ void Application::Initialize()
 	mCubeFront = mDevice->CreateTexture(cubeRenderDesc);
 	mCubeBack = mDevice->CreateTexture(cubeRenderDesc);
 
+	BufferDescription bufferDesc{
+		.bufferDescriptor = DescriptorType::Cbv,
+		.heapType = D3D12_HEAP_TYPE_UPLOAD,
+		.size = sizeof(PerFrameConstantBuffer),
+		.count = 1 };
+	mPerFrameConstantBuffer = mDevice->CreateBuffer(bufferDesc);
+	mPerFrameConstantBuffer->mResource->Map(0, nullptr, &mPerFrameConstantBuffer->mMapped);
+
+	mPerFrameConstantBufferData = {
+		.frontDescriptorIndex = mCubeFront->mDescriptorIndex,
+		.backDescriptorIndex = mCubeBack->mDescriptorIndex};
+
+	memcpy(mPerFrameConstantBuffer->mMapped, &mPerFrameConstantBufferData, sizeof(PerFrameConstantBuffer));
+
 	InitializePipelines();
+	LoadVolumeData();
+
+	mCamera = std::make_unique<Camera>(*mDevice.get(), mInput, mCube->mDescriptorIndex);
 
 	mIsInitialized = true;
+}
+
+void Application::LoadVolumeData()
+{
+	std::vector<uint8_t> data = utils::LoadFileIntoVector<uint8_t>(std::filesystem::path(RESOURCE_DIR "/foot_256x256x256_uint8.raw"));
+
+	//mVolumeData.resize(d.size(), 0.0f);
+	//for (uint32_t i = 0; i < mVolumeData.size(); i++)
+	//{
+	//	mVolumeData[i] = (static_cast<float>(d[i]) / UINT8_MAX);
+	//}
+
+	TextureDescription desc{
+		.textureDescriptor = DescriptorType::Srv,
+		.dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D,
+		.format = DXGI_FORMAT_R8_UNORM,
+		.initialState = D3D12_RESOURCE_STATE_COPY_DEST,
+		.width = 256,
+		.height = 256,
+		.depthOrArraySize = 256};
+	mVolumeTexture = mDevice->CreateTexture(desc);
+
+	mDevice->ImmediateUploadToGpu(mVolumeTexture.get(), data.data());
 }
 
 void Application::InitializePipelines()
@@ -56,6 +99,9 @@ void Application::InitializePipelines()
 	D3D12_ROOT_PARAMETER1 params[] = {
 		{.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
 		 .Descriptor = {.ShaderRegister = 0, .RegisterSpace = 0},
+		 .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL},
+		{.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
+		 .Descriptor = {.ShaderRegister = 0, .RegisterSpace = 1},
 		 .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL} };
 
 	D3D12_ROOT_SIGNATURE_DESC1 desc = {
@@ -224,8 +270,6 @@ void Application::InitializePipelines()
 		}
 		mCube->mResource->Unmap(0, nullptr);
 	}
-
-	mCamera = std::make_unique<Camera>(*mDevice.get(), mInput, mCube->mDescriptorIndex);
 }
 
 // will be put into Context class when I get around to making it !!!

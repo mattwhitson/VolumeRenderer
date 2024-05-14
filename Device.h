@@ -34,6 +34,8 @@ public:
 	void BeginFrame();
 	void EndFrame();
 
+	void ImmediateUploadToGpu(Resource* resource, void* data);
+
 private:
 	void InitializeDevice();
 	void InitializeDeviceResources();
@@ -58,4 +60,5 @@ private:
 	std::array<uint64_t, FRAMES_IN_FLIGHT> mFenceValues;
 	std::array<TextureResource, NUM_BACK_BUFFERS> mBackBuffers;
 
+	std::unique_ptr<BufferResource> mUploadBuffer = nullptr;
 };

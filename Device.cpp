@@ -156,6 +156,13 @@ void Device::InitializeDeviceResources()
 	}
 
 	DX_ASSERT(mDevice->CreateCommandList1(0, D3D12_COMMAND_LIST_TYPE_DIRECT, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&mCommandList)));
+
+	BufferDescription bufferDesc = {
+		.heapType = D3D12_HEAP_TYPE_UPLOAD,
+		.size = 1024 * 1024 * 32};
+
+	mUploadBuffer = CreateBuffer(bufferDesc);
+	mUploadBuffer->mResource->Map(0, nullptr, reinterpret_cast<void**>(&mUploadBuffer->mMapped));
 }
 
 std::unique_ptr<BufferResource> Device::CreateBuffer(BufferDescription& bufferDesc, void* data)
@@ -186,6 +193,7 @@ std::unique_ptr<BufferResource> Device::CreateBuffer(BufferDescription& bufferDe
 	buffer->mDesc = desc;
 	buffer->mStride = bufferDesc.stride;
 	buffer->mCurrentState = bufferDesc.initialState;
+	buffer->mSize = desc.Width;
 
 	uint32_t numElements = bufferDesc.stride > 0 ? (bufferDesc.size / bufferDesc.stride) : 1;
 
@@ -212,7 +220,7 @@ std::unique_ptr<BufferResource> Device::CreateBuffer(BufferDescription& bufferDe
 			.SizeInBytes = static_cast<uint32_t>(buffer->mDesc.Width) };
 
 		buffer->mCbvDescriptor = mSRVDescriptorHeap->GetDescriptor();
-		buffer->mDescriptorIndex = buffer->mSrvDescriptor.mHeapIndex;
+		//buffer->mDescriptorIndex = buffer->mSrvDescriptor.mHeapIndex;
 		mDevice->CreateConstantBufferView(&constantBufferViewDesc, buffer->mCbvDescriptor.mCpuHandle);
 	}
 	if ((bufferDesc.bufferDescriptor & DescriptorType::Uav) == DescriptorType::Uav)
@@ -228,7 +236,7 @@ std::unique_ptr<BufferResource> Device::CreateBuffer(BufferDescription& bufferDe
 				.Flags = bufferDesc.isRaw ? D3D12_BUFFER_UAV_FLAG_RAW : D3D12_BUFFER_UAV_FLAG_NONE } };
 
 		buffer->mUavDescriptor = mSRVDescriptorHeap->GetDescriptor();
-		buffer->mDescriptorIndex = buffer->mSrvDescriptor.mHeapIndex;
+		//buffer->mDescriptorIndex = buffer->mSrvDescriptor.mHeapIndex;
 		mDevice->CreateUnorderedAccessView(buffer->mResource.Get(), nullptr, &uavDesc, buffer->mUavDescriptor.mCpuHandle);
 	}
 
@@ -289,6 +297,7 @@ std::unique_ptr<TextureResource> Device::CreateTexture(TextureDescription& textu
 
 	texture->mDesc = desc;
 	texture->mCurrentState = textureDesc.initialState;
+	texture->mSize = desc.Width * desc.Height * desc.DepthOrArraySize; // also should add mip map size
 
 	if ((textureDesc.textureDescriptor & DescriptorType::Dsv) == DescriptorType::Dsv)
 	{
@@ -299,7 +308,7 @@ std::unique_ptr<TextureResource> Device::CreateTexture(TextureDescription& textu
 			.Texture2D = {.MipSlice = 0 } };
 
 		texture->mDsvDescriptor = mDSVDescriptorHeap->GetDescriptor();
-		texture->mDescriptorIndex = texture->mDsvDescriptor.mHeapIndex;
+		//texture->mDescriptorIndex = texture->mDsvDescriptor.mHeapIndex;
 		mDevice->CreateDepthStencilView(texture->mResource.Get(), &dsvDesc, texture->mDsvDescriptor.mCpuHandle);
 	}
 	if ((textureDesc.textureDescriptor & DescriptorType::Rtv) == DescriptorType::Rtv)
@@ -312,23 +321,41 @@ std::unique_ptr<TextureResource> Device::CreateTexture(TextureDescription& textu
 				.PlaneSlice = 0} };
 
 		texture->mRtvDescriptor = mRTVDescriptorHeap->GetDescriptor();
-		texture->mDescriptorIndex = texture->mDsvDescriptor.mHeapIndex;
+		//texture->mDescriptorIndex = texture->mSrvDescriptor.mHeapIndex;
 		mDevice->CreateRenderTargetView(texture->mResource.Get(), &rtvDesc, texture->mRtvDescriptor.mCpuHandle);
 	}
+
+		// THIS WILL ONLY WORK FOR BASIC setups, need to change this for cube maps/ 3d textures etc...
 	if ((textureDesc.textureDescriptor & DescriptorType::Srv) == DescriptorType::Srv)
 	{
-		// THIS WILL ONLY WORK FOR BASIC setups, need to change this for cube maps/ 3d textures etc...
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{ .Format = textureDesc.format,
-			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-			.Texture2D = {
-				.MostDetailedMip = 0,
-				.MipLevels = textureDesc.mipLevels,
-				.PlaneSlice = 0,
-				.ResourceMinLODClamp = 0.0f } };
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		if (textureDesc.dimension == D3D12_RESOURCE_DIMENSION_TEXTURE2D)
+		{
+			srvDesc = {
+				.Format = textureDesc.format,
+				.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Texture2D = {
+					.MostDetailedMip = 0,
+					.MipLevels = textureDesc.mipLevels,
+					.PlaneSlice = 0,
+					.ResourceMinLODClamp = 0.0f } };
+		}
+		else if (textureDesc.dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D)
+		{
+			srvDesc = {
+				.Format = textureDesc.format,
+				.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE3D,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Texture3D = {
+					.MostDetailedMip = 0,
+					.MipLevels = textureDesc.mipLevels,
+					.ResourceMinLODClamp = 0.0f } };
+
+		}
 
 		texture->mSrvDescriptor = mSRVDescriptorHeap->GetDescriptor();
-		texture->mDescriptorIndex = texture->mDsvDescriptor.mHeapIndex;
+		texture->mDescriptorIndex = texture->mSrvDescriptor.mHeapIndex;
 		mDevice->CreateShaderResourceView(texture->mResource.Get(), &srvDesc, texture->mSrvDescriptor.mCpuHandle);
 	}
 
@@ -350,4 +377,69 @@ void Device::EndFrame()
 
 	mFenceValues[mFrameIndex] = mGraphicsQueue->Signal();
 	mFrameIndex = (mFrameIndex + 1) % FRAMES_IN_FLIGHT;
+}
+
+void Device::ImmediateUploadToGpu(Resource* resource, void* data)
+{
+	uint64_t arraySize = resource->mDesc.DepthOrArraySize;
+	uint64_t mipLevels = resource->mDesc.MipLevels;
+	if (resource->mDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D)
+	{
+		arraySize = 1;
+	}
+
+	static constexpr uint32_t MAX_TEXTURE_SUBRESOURCE_COUNT = 32;
+	UINT numRows[MAX_TEXTURE_SUBRESOURCE_COUNT];
+	uint64_t rowSizesInBytes[MAX_TEXTURE_SUBRESOURCE_COUNT];
+	std::array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT, MAX_TEXTURE_SUBRESOURCE_COUNT> subResourceLayouts{}; // this should be a part of TextureResource
+	uint32_t numSubresources = static_cast<uint32_t>(mipLevels * arraySize); // so basically, if its a 3d texture, you don't want to multiply by depthOrArraySize, otherwise yes
+	uint64_t dataSize = 0;
+
+	mDevice->GetCopyableFootprints(&resource->mDesc, 0, numSubresources, 0, subResourceLayouts.data(), numRows, rowSizesInBytes, &dataSize);
+
+	uint8_t* sourceSubResourceMemory = static_cast<uint8_t*>(data);
+	for (uint64_t arrayIndex = 0; arrayIndex < arraySize; arrayIndex++)
+	{
+		for (uint64_t mipIndex = 0; mipIndex < mipLevels; mipIndex++)
+		{
+			const uint64_t subResourceIndex = mipIndex + (arrayIndex * mipLevels);
+			const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& subResourceLayout = subResourceLayouts[subResourceIndex];
+			const uint64_t subResourceHeight = numRows[subResourceIndex];
+			const uint64_t subResourcePitch = utils::AlignU32(subResourceLayout.Footprint.RowPitch, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+			const uint64_t subResourceDepth = subResourceLayout.Footprint.Depth;
+			uint8_t* destinationSubResourceMemory = static_cast<uint8_t*>(mUploadBuffer->mMapped) + subResourceLayout.Offset;
+
+			for (uint64_t sliceIndex = 0; sliceIndex < subResourceDepth; sliceIndex++)
+			{
+				for (uint64_t height = 0; height < subResourceHeight; height++)
+				{
+					memcpy(destinationSubResourceMemory, sourceSubResourceMemory, subResourcePitch);
+					destinationSubResourceMemory += subResourcePitch;
+					sourceSubResourceMemory += (resource->mDesc.Width * sizeof(uint8_t)); // this is not good enough for generic use obviously (need a stride variable attached to resource)
+				}
+			}
+		}
+	}
+
+
+
+	mCommandAllocators[mFrameIndex]->Reset();
+	mCommandList->Reset(mCommandAllocators[mFrameIndex].Get(), nullptr);
+
+	D3D12_TEXTURE_COPY_LOCATION destinationLocation = {};
+	destinationLocation.pResource = resource->mResource.Get();
+	destinationLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	destinationLocation.SubresourceIndex = 0;
+
+	D3D12_TEXTURE_COPY_LOCATION sourceLocation = {};
+	sourceLocation.pResource = mUploadBuffer->mResource.Get();
+	sourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	sourceLocation.PlacedFootprint = subResourceLayouts[0];
+
+	memcpy(mUploadBuffer->mMapped, data, resource->mSize);
+	mCommandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
+
+	mGraphicsQueue->Submit(mCommandList.Get());
+	mFenceValues[mFrameIndex] = mGraphicsQueue->Signal();
+	mGraphicsQueue->WaitForQueueCpuBlocking(mFenceValues[mFrameIndex]);
 }
