@@ -5,7 +5,7 @@
 
 #include <iostream>
  
-Camera::Camera(Device& device, Input& input, uint32_t descriptorIndex)
+Camera::Camera(Device& device, Input& input)
 	: mInput(input)
 	, mDevice(device)
 	, mPosition(0, 0, -5)
@@ -31,20 +31,15 @@ Camera::Camera(Device& device, Input& input, uint32_t descriptorIndex)
 		DirectX::XMMatrixTranspose(
 			DirectX::XMMatrixPerspectiveFovLH(3.14159f / 4.0f, aspectRatio, 0.01f, 100.f)));
 
-	DirectX::XMStoreFloat4x4(&mConstantBufferData.worldMatrix, 
-		DirectX::XMMatrixIdentity());
-
-	mConstantBufferData.mCubeDescriptorIndex = descriptorIndex;
-
 	memcpy(mConstantBuffer->mMapped, &mConstantBufferData, sizeof(CameraConstantBuffer));
 	UpdateViewMatrix();
 }
 
 void Camera::Update(Input& input, float deltaTime)
 {
-	UpdatePosition(input, deltaTime);
 	if (mRmbIsPressed)
 		CalculateMouseDelta(deltaTime);
+	UpdatePosition(input, deltaTime);
 	UpdateViewMatrix();
 }
 

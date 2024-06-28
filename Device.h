@@ -26,6 +26,7 @@ public:
 	TextureResource& GetBackbuffer(uint32_t index) { return mBackBuffers[index]; }
 	TextureResource& GetCurrentBackbuffer() { return mBackBuffers[mSwapChain->GetCurrentBackBufferIndex()]; }
 	ID3D12DescriptorHeap* GetSrvHeap() { return mSRVDescriptorHeap->GetHeap(); }
+	ID3D12DescriptorHeap* GetSamplerHeap() { return mSamplerDescriptorHeap->GetHeap(); }
 	void WaitForIdle();
 
 	std::unique_ptr<BufferResource> CreateBuffer(BufferDescription& desc, void* data = nullptr);
@@ -55,6 +56,7 @@ private:
 	std::unique_ptr<DescriptorHeap> mSRVDescriptorHeap = nullptr;
 	std::unique_ptr<DescriptorHeap> mRTVDescriptorHeap = nullptr;
 	std::unique_ptr<DescriptorHeap> mDSVDescriptorHeap = nullptr;
+	std::unique_ptr<DescriptorHeap> mSamplerDescriptorHeap = nullptr;
 	std::unique_ptr<Queue> mGraphicsQueue = nullptr;
 
 	std::array<uint64_t, FRAMES_IN_FLIGHT> mFenceValues;

@@ -76,15 +76,17 @@ struct TextureDescription {
 };
 
 struct PerFrameConstantBuffer {
-	uint32_t frontDescriptorIndex = 0;
-	uint32_t backDescriptorIndex = 0;
+	DirectX::XMFLOAT4X4 modelMatrix{};
+	DirectX::XMFLOAT2 cameraDimensions{};
+	uint32_t frontDescriptorIndex = UINT_MAX;
+	uint32_t backDescriptorIndex = UINT_MAX;
+	uint32_t cubeDescriptorIndex = UINT_MAX;
+	uint32_t volumeDataDescriptor = UINT_MAX;
 };
 
 struct CameraConstantBuffer {
 	DirectX::XMFLOAT4X4 projectionMatrix{};
 	DirectX::XMFLOAT4X4 cameraMatrix{};
-	DirectX::XMFLOAT4X4 worldMatrix{};
-	uint32_t mCubeDescriptorIndex = UINT_MAX;
 };
 
 namespace utils {

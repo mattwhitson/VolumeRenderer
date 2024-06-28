@@ -49,6 +49,10 @@ void Application::Initialize()
 	mCubeFront = mDevice->CreateTexture(cubeRenderDesc);
 	mCubeBack = mDevice->CreateTexture(cubeRenderDesc);
 
+
+	InitializePipelines();
+	LoadVolumeData();
+
 	BufferDescription bufferDesc{
 		.bufferDescriptor = DescriptorType::Cbv,
 		.heapType = D3D12_HEAP_TYPE_UPLOAD,
@@ -58,15 +62,18 @@ void Application::Initialize()
 	mPerFrameConstantBuffer->mResource->Map(0, nullptr, &mPerFrameConstantBuffer->mMapped);
 
 	mPerFrameConstantBufferData = {
+		.cameraDimensions = DirectX::XMFLOAT2(Window::GetWidth(), Window::GetHeight()),
 		.frontDescriptorIndex = mCubeFront->mDescriptorIndex,
-		.backDescriptorIndex = mCubeBack->mDescriptorIndex};
+		.backDescriptorIndex = mCubeBack->mDescriptorIndex,
+		.cubeDescriptorIndex = mCube->mDescriptorIndex,
+		.volumeDataDescriptor = mVolumeTexture->mDescriptorIndex
+		};
+	DirectX::XMStoreFloat4x4(&mPerFrameConstantBufferData.modelMatrix,
+		DirectX::XMMatrixIdentity());
 
 	memcpy(mPerFrameConstantBuffer->mMapped, &mPerFrameConstantBufferData, sizeof(PerFrameConstantBuffer));
 
-	InitializePipelines();
-	LoadVolumeData();
-
-	mCamera = std::make_unique<Camera>(*mDevice.get(), mInput, mCube->mDescriptorIndex);
+	mCamera = std::make_unique<Camera>(*mDevice.get(), mInput);
 
 	mIsInitialized = true;
 }
@@ -136,7 +143,6 @@ void Application::InitializePipelines()
 		.PS = {
 			.pShaderBytecode = pixelBlob->GetBufferPointer(),
 			.BytecodeLength = pixelBlob->GetBufferSize()},
-		.BlendState = {},
 		.SampleMask = 0xFFFFFFFF,
 		.RasterizerState = {
 			.FillMode = D3D12_FILL_MODE_SOLID,
@@ -176,9 +182,18 @@ void Application::InitializePipelines()
 		D3D12_COLOR_WRITE_ENABLE_ALL,
 	};
 
+	const D3D12_RENDER_TARGET_BLEND_DESC modifiedRenderTargetBlendDesc =
+	{
+		TRUE,FALSE,
+		D3D12_BLEND_SRC_ALPHA, D3D12_BLEND_ONE, D3D12_BLEND_OP_ADD,
+		D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+		D3D12_LOGIC_OP_NOOP,
+		D3D12_COLOR_WRITE_ENABLE_ALL,
+	};
+
 	for (uint32_t i = 0; i < NUM_BACK_BUFFERS; i++)
 	{
-		pipelineDesc.BlendState.RenderTarget[i] = defaultRenderTargetBlendDesc;
+		pipelineDesc.BlendState.RenderTarget[i] = modifiedRenderTargetBlendDesc;
 		pipelineDesc.RTVFormats[i] = mDevice->GetBackbuffer(i).mTextureFormat;
 	}
 
@@ -291,7 +306,7 @@ static void AddBarrier(std::vector<D3D12_RESOURCE_BARRIER>& barriers, Resource* 
 	barriers.push_back(barrier);
 }
 
-static std::chrono::steady_clock::time_point prev = std::chrono::steady_clock::now();
+static std::chrono::high_resolution_clock::time_point prev = std::chrono::steady_clock::now();
 
 void Application::Update()
 {
@@ -306,7 +321,7 @@ void Application::Render()
 {
 	mDevice->BeginFrame();
 	ComPtr<ID3D12GraphicsCommandList5> mCommandList = mDevice->mCommandList;
-	ID3D12DescriptorHeap* heaps[] = { mDevice->GetSrvHeap() };
+	ID3D12DescriptorHeap* heaps[] = { mDevice->GetSrvHeap(), mDevice->GetSamplerHeap() };
 	mCommandList->SetDescriptorHeaps(static_cast<uint32_t>(std::size(heaps)), heaps);
 
 	{
@@ -328,6 +343,7 @@ void Application::Render()
 		mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 		mCommandList->SetPipelineState(mCullBackFacePipeline.Get());
 		mCommandList->SetGraphicsRootConstantBufferView(0, mCamera->mConstantBuffer->mResource->GetGPUVirtualAddress());
+		mCommandList->SetGraphicsRootConstantBufferView(1, mPerFrameConstantBuffer->mResource->GetGPUVirtualAddress());
 
 		D3D12_VIEWPORT viewPort{
 		.TopLeftX = 0,
@@ -360,6 +376,7 @@ void Application::Render()
 		mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 		mCommandList->SetPipelineState(mCullFrontFacePipeline.Get());
 		mCommandList->SetGraphicsRootConstantBufferView(0, mCamera->mConstantBuffer->mResource->GetGPUVirtualAddress());
+		mCommandList->SetGraphicsRootConstantBufferView(1, mPerFrameConstantBuffer->mResource->GetGPUVirtualAddress());
 
 		D3D12_VIEWPORT viewPort{
 		.TopLeftX = 0,
@@ -406,6 +423,7 @@ void Application::Render()
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 	mCommandList->SetPipelineState(mGraphicsPipeline.Get());
 	mCommandList->SetGraphicsRootConstantBufferView(0, mCamera->mConstantBuffer->mResource->GetGPUVirtualAddress());
+	mCommandList->SetGraphicsRootConstantBufferView(1, mPerFrameConstantBuffer->mResource->GetGPUVirtualAddress());
 
 	D3D12_VIEWPORT viewPort{
 		.TopLeftX = 0,

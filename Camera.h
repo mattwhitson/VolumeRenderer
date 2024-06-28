@@ -17,7 +17,7 @@ class Camera {
 		bool inProgress = false;
 	};
 public: 
-	Camera(Device& device, Input& input, uint32_t descriptorIndex /*TEMP*/);
+	Camera(Device& device, Input& input);
 	~Camera();
 
 	void Update(Input& input, float deltaTime);
