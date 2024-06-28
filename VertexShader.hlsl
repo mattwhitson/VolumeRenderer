@@ -3,31 +3,33 @@ struct VertexOutput {
 	float3 vertPos: VERT_POS;
 };
 
-struct MeshConstants {
+struct CameraConstants {
 	matrix projMatrix;
 	matrix cameraMatrix;
-	matrix modelMatrix;
-	uint vertexBufferIndex;
 };
 
-ConstantBuffer<MeshConstants> ObjectConstantBuffer : register(b0, space0);
+struct PerFrameConstants {
+	matrix modelMatrix;
+	float2 cameraDimensions;
+	uint frontBufferIndex;
+	uint backBufferIndex;
+	uint cubeBufferIndex;
+	uint volumeDataBufferIndex;
+};
+
+
+ConstantBuffer<CameraConstants> CameraConstantBuffer : register(b0, space0);
+ConstantBuffer<PerFrameConstants> PerFrameConstantBuffer : register(b0, space1);
 
 VertexOutput VSMain(uint vertexId : SV_VERTEXID)
 {
-	ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[ObjectConstantBuffer.vertexBufferIndex];
+	ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[PerFrameConstantBuffer.cubeBufferIndex];
 	float3 pos = vertexBuffer.Load<float3>(vertexId * sizeof(float3));
 
-	matrix translation = matrix(
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f, 
-		0.0f, 0.0f, 10.0f, 1.0f
-	);
-
 	VertexOutput output;
-	output.position = mul(float4(pos, 1.0f), ObjectConstantBuffer.modelMatrix);
-	output.position = mul(output.position, ObjectConstantBuffer.cameraMatrix);
-	output.position = mul(output.position, ObjectConstantBuffer.projMatrix);
+	output.position = mul(float4(pos, 1.0f), PerFrameConstantBuffer.modelMatrix);
+	output.position = mul(output.position, CameraConstantBuffer.cameraMatrix);
+	output.position = mul(output.position, CameraConstantBuffer.projMatrix);
 	output.vertPos = pos;
 	return output;
 }
